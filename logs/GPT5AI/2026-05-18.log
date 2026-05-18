@@ -60,3 +60,8 @@ PHASE: implementing client sync + Pages Functions backend (D1)
 PHASE: added /api/sync Pages Function storing encrypted blob in D1
 PHASE: added client sync key + auto sync + conflict merge
 END: 2026-05-18T00:00:00Z
+---
+TASK: github-pages-open-root
+START: 2026-05-18T00:00:00Z
+PHASE: added root index.html redirect to ./site/
+END: 2026-05-18T00:00:00Z
