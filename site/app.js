@@ -445,6 +445,24 @@
       }
     }
 
+    if (!data || typeof data !== "object") {
+      alert("导入失败：格式不正确。");
+      return;
+    }
+
+    if (!Array.isArray(data.notes)) {
+      const maybeDashboard = normalizeDashboard(data);
+      if (maybeDashboard && Array.isArray(maybeDashboard.items) && maybeDashboard.items.length > 0) {
+        const ok = confirm("检测到这是「API 余额」的 JSON。要导入到 API 余额页面吗？");
+        if (!ok) return;
+        dashboardState = maybeDashboard;
+        saveDashboardToLocal(maybeDashboard);
+        activeView = "dashboard";
+        render();
+        return;
+      }
+    }
+
     const notes = Array.isArray(data.notes) ? data.notes.map(normalizeNote).filter(Boolean) : [];
     if (notes.length === 0) {
       alert("导入失败：没有可用的 notes 数据。");

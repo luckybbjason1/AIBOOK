@@ -87,3 +87,8 @@ TASK: show-usage-and-balance
 START: 2026-05-18T00:00:00Z
 PHASE: dashboard supports fields used/usedUnit/limit and renders usage line per provider
 END: 2026-05-18T00:00:00Z
+---
+TASK: smart-import-dashboard-json
+START: 2026-05-18T00:00:00Z
+PHASE: notes import detects dashboard JSON and offers to import into API 余额 instead of erroring
+END: 2026-05-18T00:00:00Z
