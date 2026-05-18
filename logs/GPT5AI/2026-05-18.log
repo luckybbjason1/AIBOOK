@@ -98,3 +98,8 @@ START: 2026-05-18T00:00:00Z
 PHASE: switched service worker to network-first for core files to avoid stale app.js
 PHASE: added stale-while-revalidate for non-core assets
 END: 2026-05-18T00:00:00Z
+---
+TASK: user-request-write-log
+START: 2026-05-18T00:00:00Z
+PHASE: appended log entry per request
+END: 2026-05-18T00:00:00Z
