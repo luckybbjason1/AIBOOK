@@ -1,0 +1,12 @@
+topic=notes-app-retrofit|github-pages|pwa-cache|secrets
+core=
+- github_pages=static_only; no serverless functions; api-sync requires external backend (cf worker/vps)
+- secrets=never_in_frontend; api_key must stay server env; frontend consumes only sanitized numbers
+- local_json_dashboard=model: {updatedAt, items[{name,balance,currency,used,usedUnit,remaining,quota,resetAt,apiBase}]}
+- import_flow=browser_cannot_read_desktop; must user-import file or paste json; store in localStorage
+- pwa_sw=avoid cache-first for core assets; use network-first for index/app/style to prevent stale UI; bump cache version
+pitfalls=
+- long querySelector brittle; prefer stable attrs or $0 after inspect
+- user confusion: split "import notes" vs "import dashboard" labels
+next=
+- if auto-balance needed: worker cron -> fetch provider balances -> output json -> frontend read-only

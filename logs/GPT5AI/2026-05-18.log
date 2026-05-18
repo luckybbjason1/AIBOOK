@@ -114,3 +114,8 @@ START: 2026-05-18T00:00:00Z
 PHASE: switched dashboard layout to vertical list
 PHASE: added quota/remaining/resetAt fields and percent bar display
 END: 2026-05-18T00:00:00Z
+---
+TASK: share-learning-notes-to-github
+START: 2026-05-18T00:00:00Z
+PHASE: wrote high-density retro notes into xuexiji (no secrets)
+END: 2026-05-18T00:00:00Z
