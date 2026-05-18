@@ -1,14 +1,24 @@
 (() => {
   const STORAGE_KEY = "dibi8_notes_v1";
+  const API_DASHBOARD_STORAGE_KEY = "dibi8_api_balances_v1";
+  const API_DASHBOARD_REMOTE_URL = "./status.json";
 
   const newNoteBtn = document.getElementById("newNoteBtn");
   const exportBtn = document.getElementById("exportBtn");
   const importInput = document.getElementById("importInput");
   const deleteBtn = document.getElementById("deleteBtn");
   const searchInput = document.getElementById("searchInput");
+  const searchBox = document.querySelector(".search");
   const notesList = document.getElementById("notesList");
+  const editorHeader = document.querySelector(".editorHeader");
   const contentInput = document.getElementById("contentInput");
   const updatedAtEl = document.getElementById("updatedAt");
+  const dashboardBtn = document.getElementById("dashboardBtn");
+  const dashboardView = document.getElementById("dashboardView");
+  const refreshDashboardBtn = document.getElementById("refreshDashboardBtn");
+  const setDashboardDataBtn = document.getElementById("setDashboardDataBtn");
+  const dashboardUpdatedAtEl = document.getElementById("dashboardUpdatedAt");
+  const dashboardCards = document.getElementById("dashboardCards");
 
   const nowISO = () => new Date().toISOString();
   const toB64 = (buf) => {
@@ -120,6 +130,8 @@
   };
 
   const state = loadState();
+  let activeView = "notes";
+  let dashboardState = null;
 
   const getActiveNote = () => state.notes.find((n) => n.id === state.activeId) || null;
 
@@ -176,13 +188,114 @@
       item.querySelector(".noteTitle").textContent = title;
       item.querySelector(".notePreview").textContent = preview;
       item.addEventListener("click", () => {
-        if (state.activeId === note.id) return;
+        activeView = "notes";
+        if (state.activeId === note.id) {
+          render();
+          contentInput.focus();
+          return;
+        }
         state.activeId = note.id;
         saveState();
         render();
         contentInput.focus();
       });
       notesList.appendChild(item);
+    }
+  };
+
+  const normalizeDashboard = (data) => {
+    if (!data || typeof data !== "object") return null;
+    const updatedAt = typeof data.updatedAt === "string" ? data.updatedAt : "";
+    const itemsRaw = Array.isArray(data.items) ? data.items : [];
+    const items = itemsRaw
+      .map((it) => {
+        if (!it || typeof it !== "object") return null;
+        const name = typeof it.name === "string" ? it.name.trim() : "";
+        if (!name) return null;
+        const balance = typeof it.balance === "number" ? it.balance : Number(it.balance);
+        const currency = typeof it.currency === "string" ? it.currency.trim() : "";
+        const itUpdatedAt = typeof it.updatedAt === "string" ? it.updatedAt : updatedAt;
+        return {
+          name,
+          balance: Number.isFinite(balance) ? balance : null,
+          currency,
+          updatedAt: itUpdatedAt || "",
+        };
+      })
+      .filter(Boolean);
+    return { updatedAt, items };
+  };
+
+  const formatNumber = (n) => {
+    if (n === null || n === undefined) return "--";
+    const num = typeof n === "number" ? n : Number(n);
+    if (!Number.isFinite(num)) return "--";
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(num);
+  };
+
+  const renderDashboard = () => {
+    dashboardCards.innerHTML = "";
+
+    const data = dashboardState && typeof dashboardState === "object" ? dashboardState : null;
+    const updatedAt = data && typeof data.updatedAt === "string" ? data.updatedAt : "";
+    dashboardUpdatedAtEl.textContent = updatedAt ? formatUpdatedAt(updatedAt) : "未配置数据";
+
+    const items = data && Array.isArray(data.items) ? data.items : [];
+    if (items.length === 0) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        `<div class="cardName">未配置</div>` +
+        `<div class="cardValue">--</div>` +
+        `<div class="cardMeta">可放置 site/status.json（同域静态文件），或点“设置数据”粘贴 JSON。</div>`;
+      dashboardCards.appendChild(card);
+      return;
+    }
+
+    for (const it of items) {
+      const card = document.createElement("div");
+      card.className = "card";
+      const value = it.balance === null ? "--" : `${formatNumber(it.balance)}${it.currency ? ` ${it.currency}` : ""}`;
+      const meta = it.updatedAt ? formatUpdatedAt(it.updatedAt) : "";
+      card.innerHTML =
+        `<div class="cardName"></div>` + `<div class="cardValue"></div>` + `<div class="cardMeta"></div>`;
+      card.querySelector(".cardName").textContent = it.name;
+      card.querySelector(".cardValue").textContent = value;
+      card.querySelector(".cardMeta").textContent = meta;
+      dashboardCards.appendChild(card);
+    }
+  };
+
+  const loadDashboardFromLocal = () => {
+    const raw = localStorage.getItem(API_DASHBOARD_STORAGE_KEY);
+    const parsed = raw ? safeJSONParse(raw) : null;
+    const normalized = normalizeDashboard(parsed);
+    if (!normalized) return null;
+    return normalized;
+  };
+
+  const saveDashboardToLocal = (data) => {
+    localStorage.setItem(API_DASHBOARD_STORAGE_KEY, JSON.stringify(data));
+  };
+
+  const refreshDashboard = async ({ silent } = { silent: false }) => {
+    try {
+      const res = await fetch(API_DASHBOARD_REMOTE_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error(`http-${res.status}`);
+      const json = await res.json();
+      const normalized = normalizeDashboard(json);
+      if (!normalized) throw new Error("bad-json");
+      dashboardState = normalized;
+      saveDashboardToLocal(normalized);
+      renderDashboard();
+    } catch (e) {
+      if (!dashboardState) {
+        dashboardState = loadDashboardFromLocal();
+      }
+      renderDashboard();
+      if (!silent) {
+        alert("刷新失败：未找到 status.json 或格式不正确。可以点“设置数据”手动粘贴。");
+      }
     }
   };
 
@@ -203,12 +316,25 @@
   };
 
   const render = () => {
+    const inDashboard = activeView === "dashboard";
+    dashboardBtn.classList.toggle("active", inDashboard);
+    if (searchBox) searchBox.classList.toggle("hidden", inDashboard);
+    if (editorHeader) editorHeader.classList.toggle("hidden", inDashboard);
+    contentInput.classList.toggle("hidden", inDashboard);
+    dashboardView.classList.toggle("hidden", !inDashboard);
+
     searchInput.value = state.query;
-    renderList();
-    renderEditor();
+    if (!inDashboard) {
+      renderList();
+      renderEditor();
+      return;
+    }
+    dashboardState = dashboardState || loadDashboardFromLocal();
+    renderDashboard();
   };
 
   const createNote = () => {
+    activeView = "notes";
     const n = { id: generateId(), content: "", createdAt: nowISO(), updatedAt: nowISO() };
     state.notes.unshift(n);
     state.activeId = n.id;
@@ -218,6 +344,7 @@
   };
 
   const deleteActive = () => {
+    if (activeView === "dashboard") return;
     const note = getActiveNote();
     if (!note) return;
     const ok = confirm("确定删除这条笔记？此操作不可恢复。");
@@ -326,6 +453,37 @@
   newNoteBtn.addEventListener("click", createNote);
   deleteBtn.addEventListener("click", deleteActive);
   exportBtn.addEventListener("click", () => exportData());
+  dashboardBtn.addEventListener("click", () => {
+    activeView = "dashboard";
+    render();
+    refreshDashboard({ silent: true });
+  });
+  refreshDashboardBtn.addEventListener("click", () => refreshDashboard());
+  setDashboardDataBtn.addEventListener("click", () => {
+    const example = JSON.stringify(
+      {
+        updatedAt: nowISO(),
+        items: [
+          { name: "OpenAI", balance: 12.34, currency: "USD" },
+          { name: "Claude", balance: 56.78, currency: "USD" },
+        ],
+      },
+      null,
+      2,
+    );
+    const input = prompt("粘贴 JSON（会保存在本机浏览器 localStorage）：", example);
+    if (!input) return;
+    const parsed = safeJSONParse(input);
+    const normalized = normalizeDashboard(parsed);
+    if (!normalized) {
+      alert("保存失败：JSON 格式不正确。");
+      return;
+    }
+    dashboardState = normalized;
+    saveDashboardToLocal(normalized);
+    activeView = "dashboard";
+    render();
+  });
 
   importInput.addEventListener("change", async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -358,6 +516,10 @@
 
     if (mod && e.key.toLowerCase() === "f") {
       e.preventDefault();
+      if (activeView === "dashboard") {
+        activeView = "notes";
+        render();
+      }
       searchInput.focus();
       searchInput.select();
       return;

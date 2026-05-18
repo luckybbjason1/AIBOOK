@@ -28,6 +28,9 @@
           <div class="search">
             <input id="searchInput" type="search" placeholder="搜索..." autocomplete="off" />
           </div>
+          <div class="pinned">
+            <button id="dashboardBtn" type="button" class="pinnedBtn">API 余额</button>
+          </div>
           <div id="notesList" class="list" role="list"></div>
         </aside>
 
@@ -47,6 +50,20 @@
             placeholder="写点什么..."
             spellcheck="false"
           ></textarea>
+
+          <div id="dashboardView" class="dashboard hidden">
+            <div class="dashboardHeader">
+              <div class="dashboardTitle">API 余额</div>
+              <div class="dashboardActions">
+                <button id="refreshDashboardBtn" type="button">刷新</button>
+                <button id="setDashboardDataBtn" type="button">设置数据</button>
+              </div>
+            </div>
+            <div class="dashboardMeta">
+              <div id="dashboardUpdatedAt" class="updatedAt"></div>
+            </div>
+            <div id="dashboardCards" class="cards"></div>
+          </div>
         </section>
       </main>
     </div>

@@ -108,6 +108,26 @@ button.danger {
   color: rgba(255, 255, 255, 0.55);
 }
 
+.pinned {
+  padding: 0 12px 8px;
+}
+
+.pinnedBtn {
+  width: 100%;
+  text-align: left;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.pinnedBtn.active {
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
 .list {
   overflow: auto;
   padding: 6px;
@@ -184,6 +204,70 @@ button.danger {
 
 .content::placeholder {
   color: rgba(255, 255, 255, 0.45);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.dashboard {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  overflow: auto;
+}
+
+.dashboardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboardTitle {
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.dashboardActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.cardName {
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.cardValue {
+  font-size: 28px;
+  font-weight: 900;
+  margin-top: 6px;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.cardMeta {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {

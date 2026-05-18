@@ -65,3 +65,9 @@ TASK: github-pages-open-root
 START: 2026-05-18T00:00:00Z
 PHASE: added root index.html redirect to ./site/
 END: 2026-05-18T00:00:00Z
+---
+TASK: add-api-balance-dashboard-page
+START: 2026-05-18T00:00:00Z
+PHASE: added pinned sidebar page "API 余额" (non-deletable)
+PHASE: implemented dashboard cards + local JSON config + optional status.json fetch
+END: 2026-05-18T00:00:00Z
