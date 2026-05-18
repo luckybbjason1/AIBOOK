@@ -71,3 +71,8 @@ START: 2026-05-18T00:00:00Z
 PHASE: added pinned sidebar page "API 余额" (non-deletable)
 PHASE: implemented dashboard cards + local JSON config + optional status.json fetch
 END: 2026-05-18T00:00:00Z
+---
+TASK: add-status-json-template
+START: 2026-05-18T00:00:00Z
+PHASE: created site/status.json with provider list and placeholder balances (no secrets)
+END: 2026-05-18T00:00:00Z
