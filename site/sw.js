@@ -1,11 +1,11 @@
-const CACHE_NAME = "notes-cache-v1";
-const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
+const CACHE_NAME = "notes-cache-v2";
+const CORE_ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
-      await cache.addAll(ASSETS);
+      await cache.addAll(CORE_ASSETS);
       await self.skipWaiting();
     })(),
   );
@@ -31,13 +31,40 @@ self.addEventListener("fetch", (event) => {
       if (url.origin !== self.location.origin) return fetch(req);
 
       const cache = await caches.open(CACHE_NAME);
+      const isNavigation = req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html");
+      const path = url.pathname;
+      const isCoreFile =
+        isNavigation ||
+        path.endsWith("/app.js") ||
+        path.endsWith("/style.css") ||
+        path.endsWith("/index.html") ||
+        path.endsWith("/manifest.webmanifest") ||
+        path.endsWith("/icon.svg");
+
       const cached = await cache.match(req, { ignoreSearch: true });
-      if (cached) return cached;
+
+      if (isCoreFile) {
+        try {
+          const res = await fetch(req, { cache: "no-store" });
+          if (res.ok) cache.put(req, res.clone()).catch(() => {});
+          return res;
+        } catch {
+          if (cached) return cached;
+          throw new Error("offline");
+        }
+      }
+
+      if (cached) {
+        fetch(req)
+          .then((res) => {
+            if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
+          })
+          .catch(() => {});
+        return cached;
+      }
 
       const res = await fetch(req);
-      if (res.ok) {
-        cache.put(req, res.clone()).catch(() => {});
-      }
+      if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
       return res;
     })(),
   );

@@ -92,3 +92,9 @@ TASK: smart-import-dashboard-json
 START: 2026-05-18T00:00:00Z
 PHASE: notes import detects dashboard JSON and offers to import into API 余额 instead of erroring
 END: 2026-05-18T00:00:00Z
+---
+TASK: fix-pwa-cache-update
+START: 2026-05-18T00:00:00Z
+PHASE: switched service worker to network-first for core files to avoid stale app.js
+PHASE: added stale-while-revalidate for non-core assets
+END: 2026-05-18T00:00:00Z
