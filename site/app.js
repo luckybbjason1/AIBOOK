@@ -1,7 +1,6 @@
 (() => {
   const STORAGE_KEY = "dibi8_notes_v1";
   const API_DASHBOARD_STORAGE_KEY = "dibi8_api_balances_v1";
-  const API_DASHBOARD_REMOTE_URL = "./status.json";
 
   const newNoteBtn = document.getElementById("newNoteBtn");
   const exportBtn = document.getElementById("exportBtn");
@@ -16,6 +15,8 @@
   const dashboardBtn = document.getElementById("dashboardBtn");
   const dashboardView = document.getElementById("dashboardView");
   const refreshDashboardBtn = document.getElementById("refreshDashboardBtn");
+  const importDashboardBtn = document.getElementById("importDashboardBtn");
+  const importDashboardInput = document.getElementById("importDashboardInput");
   const setDashboardDataBtn = document.getElementById("setDashboardDataBtn");
   const dashboardUpdatedAtEl = document.getElementById("dashboardUpdatedAt");
   const dashboardCards = document.getElementById("dashboardCards");
@@ -247,7 +248,7 @@
       card.innerHTML =
         `<div class="cardName">未配置</div>` +
         `<div class="cardValue">--</div>` +
-        `<div class="cardMeta">可放置 site/status.json（同域静态文件），或点“设置数据”粘贴 JSON。</div>`;
+        `<div class="cardMeta">点“导入JSON”选择本地文件，或点“粘贴JSON”直接粘贴。数据只保存在本机浏览器。</div>`;
       dashboardCards.appendChild(card);
       return;
     }
@@ -279,24 +280,19 @@
   };
 
   const refreshDashboard = async ({ silent } = { silent: false }) => {
-    try {
-      const res = await fetch(API_DASHBOARD_REMOTE_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error(`http-${res.status}`);
-      const json = await res.json();
-      const normalized = normalizeDashboard(json);
-      if (!normalized) throw new Error("bad-json");
-      dashboardState = normalized;
-      saveDashboardToLocal(normalized);
-      renderDashboard();
-    } catch (e) {
-      if (!dashboardState) {
-        dashboardState = loadDashboardFromLocal();
-      }
-      renderDashboard();
-      if (!silent) {
-        alert("刷新失败：未找到 status.json 或格式不正确。可以点“设置数据”手动粘贴。");
-      }
-    }
+    dashboardState = loadDashboardFromLocal();
+    renderDashboard();
+    if (!dashboardState && !silent) alert("没有本地数据。请先导入或粘贴 JSON。");
+  };
+
+  const importDashboardFile = async (file) => {
+    const text = await file.text();
+    const parsed = safeJSONParse(text);
+    const normalized = normalizeDashboard(parsed);
+    if (!normalized) return { ok: false };
+    dashboardState = normalized;
+    saveDashboardToLocal(normalized);
+    return { ok: true };
   };
 
   const renderEditor = () => {
@@ -459,6 +455,23 @@
     refreshDashboard({ silent: true });
   });
   refreshDashboardBtn.addEventListener("click", () => refreshDashboard());
+  importDashboardBtn.addEventListener("click", () => importDashboardInput.click());
+  importDashboardInput.addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    importDashboardInput.value = "";
+    if (!file) return;
+    try {
+      const r = await importDashboardFile(file);
+      if (!r.ok) {
+        alert("导入失败：JSON 格式不正确。");
+        return;
+      }
+      activeView = "dashboard";
+      render();
+    } catch {
+      alert("导入失败：读取文件出错。");
+    }
+  });
   setDashboardDataBtn.addEventListener("click", () => {
     const example = JSON.stringify(
       {

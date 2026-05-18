@@ -76,3 +76,9 @@ TASK: add-status-json-template
 START: 2026-05-18T00:00:00Z
 PHASE: created site/status.json with provider list and placeholder balances (no secrets)
 END: 2026-05-18T00:00:00Z
+---
+TASK: make-dashboard-private-data
+START: 2026-05-18T00:00:00Z
+PHASE: removed site/status.json from repo to avoid public exposure on GitHub Pages
+PHASE: switched dashboard to local-only data (paste/import JSON; stored in browser localStorage)
+END: 2026-05-18T00:00:00Z
