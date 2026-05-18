@@ -82,3 +82,8 @@ START: 2026-05-18T00:00:00Z
 PHASE: removed site/status.json from repo to avoid public exposure on GitHub Pages
 PHASE: switched dashboard to local-only data (paste/import JSON; stored in browser localStorage)
 END: 2026-05-18T00:00:00Z
+---
+TASK: show-usage-and-balance
+START: 2026-05-18T00:00:00Z
+PHASE: dashboard supports fields used/usedUnit/limit and renders usage line per provider
+END: 2026-05-18T00:00:00Z

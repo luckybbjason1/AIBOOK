@@ -270,6 +270,10 @@ button.danger {
   font-size: 12px;
 }
 
+.cardMeta + .cardMeta {
+  margin-top: 4px;
+}
+
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;

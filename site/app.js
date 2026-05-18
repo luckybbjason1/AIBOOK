@@ -214,12 +214,18 @@
         const name = typeof it.name === "string" ? it.name.trim() : "";
         if (!name) return null;
         const balance = typeof it.balance === "number" ? it.balance : Number(it.balance);
+        const used = typeof it.used === "number" ? it.used : Number(it.used);
         const currency = typeof it.currency === "string" ? it.currency.trim() : "";
+        const usedUnit = typeof it.usedUnit === "string" ? it.usedUnit.trim() : "";
+        const limit = typeof it.limit === "number" ? it.limit : Number(it.limit);
         const itUpdatedAt = typeof it.updatedAt === "string" ? it.updatedAt : updatedAt;
         return {
           name,
           balance: Number.isFinite(balance) ? balance : null,
+          used: Number.isFinite(used) ? used : null,
           currency,
+          usedUnit,
+          limit: Number.isFinite(limit) ? limit : null,
           updatedAt: itUpdatedAt || "",
         };
       })
@@ -248,7 +254,7 @@
       card.innerHTML =
         `<div class="cardName">未配置</div>` +
         `<div class="cardValue">--</div>` +
-        `<div class="cardMeta">点“导入JSON”选择本地文件，或点“粘贴JSON”直接粘贴。数据只保存在本机浏览器。</div>`;
+        `<div class="cardMeta">点“导入JSON”选择本地文件，或点“粘贴JSON”直接粘贴。字段支持：balance（余额）、used（使用量）、usedUnit、limit、updatedAt。</div>`;
       dashboardCards.appendChild(card);
       return;
     }
@@ -257,12 +263,21 @@
       const card = document.createElement("div");
       card.className = "card";
       const value = it.balance === null ? "--" : `${formatNumber(it.balance)}${it.currency ? ` ${it.currency}` : ""}`;
+      const usedValue =
+        it.used === null ? "--" : `${formatNumber(it.used)}${it.usedUnit ? ` ${it.usedUnit}` : ""}`;
+      const limitValue =
+        it.limit === null ? "" : `${formatNumber(it.limit)}${it.usedUnit ? ` ${it.usedUnit}` : ""}`;
+      const usageLine = limitValue ? `使用量：${usedValue} / ${limitValue}` : `使用量：${usedValue}`;
       const meta = it.updatedAt ? formatUpdatedAt(it.updatedAt) : "";
       card.innerHTML =
-        `<div class="cardName"></div>` + `<div class="cardValue"></div>` + `<div class="cardMeta"></div>`;
+        `<div class="cardName"></div>` +
+        `<div class="cardValue"></div>` +
+        `<div class="cardMeta"></div>` +
+        `<div class="cardMeta"></div>`;
       card.querySelector(".cardName").textContent = it.name;
       card.querySelector(".cardValue").textContent = value;
-      card.querySelector(".cardMeta").textContent = meta;
+      card.querySelectorAll(".cardMeta")[0].textContent = usageLine;
+      card.querySelectorAll(".cardMeta")[1].textContent = meta;
       dashboardCards.appendChild(card);
     }
   };
@@ -477,8 +492,8 @@
       {
         updatedAt: nowISO(),
         items: [
-          { name: "OpenAI", balance: 12.34, currency: "USD" },
-          { name: "Claude", balance: 56.78, currency: "USD" },
+          { name: "OpenAI", balance: 12.34, currency: "USD", used: 123456, usedUnit: "tokens" },
+          { name: "Claude", balance: 56.78, currency: "USD", used: 98765, usedUnit: "tokens" },
         ],
       },
       null,
