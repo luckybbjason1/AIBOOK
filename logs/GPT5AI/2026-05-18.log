@@ -103,3 +103,8 @@ TASK: user-request-write-log
 START: 2026-05-18T00:00:00Z
 PHASE: appended log entry per request
 END: 2026-05-18T00:00:00Z
+---
+TASK: clarify-import-buttons
+START: 2026-05-18T00:00:00Z
+PHASE: renamed topbar buttons to avoid confusion with dashboard JSON import
+END: 2026-05-18T00:00:00Z
