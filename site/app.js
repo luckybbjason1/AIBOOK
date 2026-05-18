@@ -1,9 +1,7 @@
 (() => {
   const STORAGE_KEY = "dibi8_notes_v1";
-  const SYNC_KEY_STORAGE = "dibi8_notes_sync_key_v1";
 
   const newNoteBtn = document.getElementById("newNoteBtn");
-  const syncBtn = document.getElementById("syncBtn");
   const exportBtn = document.getElementById("exportBtn");
   const importInput = document.getElementById("importInput");
   const deleteBtn = document.getElementById("deleteBtn");
@@ -11,7 +9,6 @@
   const notesList = document.getElementById("notesList");
   const contentInput = document.getElementById("contentInput");
   const updatedAtEl = document.getElementById("updatedAt");
-  const syncStatusEl = document.getElementById("syncStatus");
 
   const nowISO = () => new Date().toISOString();
   const toB64 = (buf) => {
@@ -25,11 +22,6 @@
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return bytes.buffer;
-  };
-  const sha256Hex = async (text) => {
-    const enc = new TextEncoder();
-    const hash = await crypto.subtle.digest("SHA-256", enc.encode(text));
-    return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
   };
   const safeJSONParse = (value) => {
     try {
@@ -128,12 +120,6 @@
   };
 
   const state = loadState();
-  let syncKey = localStorage.getItem(SYNC_KEY_STORAGE) || "";
-  let syncInFlight = false;
-  let syncQueued = false;
-  let lastSyncAt = "";
-  let lastSyncError = "";
-  let lastServerUpdatedAt = "";
 
   const getActiveNote = () => state.notes.find((n) => n.id === state.activeId) || null;
 
@@ -205,7 +191,6 @@
     if (!note) {
       contentInput.value = "";
       updatedAtEl.textContent = "";
-      syncStatusEl.textContent = "";
       contentInput.disabled = true;
       deleteBtn.disabled = true;
       return;
@@ -215,7 +200,6 @@
     deleteBtn.disabled = false;
     contentInput.value = note.content || "";
     updatedAtEl.textContent = formatUpdatedAt(note.updatedAt);
-    syncStatusEl.textContent = getSyncStatusText();
   };
 
   const render = () => {
@@ -252,146 +236,6 @@
     render();
   };
 
-  const getSyncStatusText = () => {
-    if (!syncKey) return "同步：未启用";
-    if (syncInFlight) return "同步：进行中...";
-    if (lastSyncError) return `同步：失败（${lastSyncError}）`;
-    if (lastSyncAt) return `同步：已完成（${new Date(lastSyncAt).toLocaleString()}）`;
-    return "同步：已启用";
-  };
-
-  const serializeForSync = () => {
-    return {
-      version: 1,
-      notes: state.notes,
-      activeId: state.activeId,
-    };
-  };
-
-  const mergeStates = (a, b) => {
-    const aNotes = Array.isArray(a?.notes) ? a.notes.map(normalizeNote).filter(Boolean) : [];
-    const bNotes = Array.isArray(b?.notes) ? b.notes.map(normalizeNote).filter(Boolean) : [];
-    const map = new Map();
-    for (const n of aNotes) map.set(n.id, n);
-    for (const n of bNotes) {
-      const prev = map.get(n.id);
-      if (!prev) {
-        map.set(n.id, n);
-        continue;
-      }
-      map.set(n.id, prev.updatedAt >= n.updatedAt ? prev : n);
-    }
-    const notes = Array.from(map.values()).sort(compareByUpdatedDesc);
-    const activeId =
-      typeof b?.activeId === "string" && notes.some((n) => n.id === b.activeId)
-        ? b.activeId
-        : typeof a?.activeId === "string" && notes.some((n) => n.id === a.activeId)
-          ? a.activeId
-          : notes[0]?.id || "";
-    return { notes, activeId };
-  };
-
-  const syncFetch = async (syncId) => {
-    const res = await fetch("./api/sync", { headers: { "x-sync-id": syncId } });
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error("fetch-failed");
-    const data = await res.json();
-    if (!data || typeof data !== "object") throw new Error("bad-response");
-    if (typeof data.payload !== "string" || typeof data.updated_at !== "string") throw new Error("bad-response");
-    return data;
-  };
-
-  const syncPut = async (syncId, payload, updatedAt, prevUpdatedAt) => {
-    const res = await fetch("./api/sync", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-sync-id": syncId },
-      body: JSON.stringify({ payload, updated_at: updatedAt, prev_updated_at: prevUpdatedAt || "" }),
-    });
-    if (res.status === 409) {
-      const data = await res.json().catch(() => null);
-      return { ok: false, conflict: true, server: data };
-    }
-    if (!res.ok) return { ok: false, conflict: false };
-    const data = await res.json().catch(() => null);
-    return { ok: true, conflict: false, server: data };
-  };
-
-  const runSync = async () => {
-    if (!syncKey) return;
-    if (syncInFlight) {
-      syncQueued = true;
-      return;
-    }
-    syncInFlight = true;
-    lastSyncError = "";
-    renderEditor();
-
-    try {
-      const syncId = await sha256Hex(syncKey);
-      const remote = await syncFetch(syncId);
-
-      let merged = serializeForSync();
-      if (remote && remote.payload) {
-        const decrypted = await decryptText(syncKey, safeJSONParse(remote.payload) || remote.payload);
-        const remoteState = safeJSONParse(decrypted);
-        merged = mergeStates(merged, remoteState);
-        lastServerUpdatedAt = remote.updated_at;
-      }
-
-      state.notes = merged.notes;
-      state.activeId = merged.activeId;
-      state.query = "";
-      saveState();
-      render();
-
-      const outgoing = serializeForSync();
-      const outgoingUpdatedAt = nowISO();
-      const encryptedObj = await encryptText(syncKey, JSON.stringify(outgoing));
-      const put1 = await syncPut(syncId, JSON.stringify(encryptedObj), outgoingUpdatedAt, lastServerUpdatedAt);
-      if (put1.ok) {
-        lastSyncAt = nowISO();
-        lastSyncError = "";
-        lastServerUpdatedAt = outgoingUpdatedAt;
-        return;
-      }
-
-      if (put1.conflict && put1.server && typeof put1.server.payload === "string") {
-        const decrypted2 = await decryptText(syncKey, safeJSONParse(put1.server.payload) || put1.server.payload);
-        const remote2 = safeJSONParse(decrypted2);
-        const merged2 = mergeStates(outgoing, remote2);
-        state.notes = merged2.notes;
-        state.activeId = merged2.activeId;
-        state.query = "";
-        saveState();
-        render();
-
-        const outgoing2 = serializeForSync();
-        const outgoingUpdatedAt2 = nowISO();
-        const encryptedObj2 = await encryptText(syncKey, JSON.stringify(outgoing2));
-        const put2 = await syncPut(syncId, JSON.stringify(encryptedObj2), outgoingUpdatedAt2, put1.server.updated_at || "");
-        if (put2.ok) {
-          lastSyncAt = nowISO();
-          lastSyncError = "";
-          lastServerUpdatedAt = outgoingUpdatedAt2;
-          return;
-        }
-        lastSyncError = "冲突未解决";
-        return;
-      }
-
-      lastSyncError = "网络或服务异常";
-    } catch {
-      lastSyncError = "网络或服务异常";
-    } finally {
-      syncInFlight = false;
-      renderEditor();
-      if (syncQueued) {
-        syncQueued = false;
-        setTimeout(() => runSync(), 200);
-      }
-    }
-  };
-
   let saveTimer = null;
   const scheduleSaveContent = () => {
     if (saveTimer) clearTimeout(saveTimer);
@@ -403,17 +247,7 @@
       saveState();
       updatedAtEl.textContent = formatUpdatedAt(note.updatedAt);
       renderList();
-      scheduleSyncPush();
     }, 200);
-  };
-
-  let syncTimer = null;
-  const scheduleSyncPush = () => {
-    if (!syncKey) return;
-    if (syncTimer) clearTimeout(syncTimer);
-    syncTimer = setTimeout(() => {
-      runSync();
-    }, 1200);
   };
 
   const download = (filename, text) => {
@@ -492,18 +326,6 @@
   newNoteBtn.addEventListener("click", createNote);
   deleteBtn.addEventListener("click", deleteActive);
   exportBtn.addEventListener("click", () => exportData());
-  syncBtn.addEventListener("click", async () => {
-    if (!syncKey) {
-      const v = prompt("设置同步密钥（多设备输入同一个即可）：") || "";
-      if (!v) return;
-      syncKey = v;
-      localStorage.setItem(SYNC_KEY_STORAGE, syncKey);
-      lastSyncAt = "";
-      lastSyncError = "";
-      lastServerUpdatedAt = "";
-    }
-    await runSync();
-  });
 
   importInput.addEventListener("change", async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -548,9 +370,5 @@
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./sw.js").catch(() => {});
     });
-  }
-
-  if (syncKey) {
-    setTimeout(() => runSync(), 50);
   }
 })();
