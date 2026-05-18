@@ -215,18 +215,28 @@
         if (!name) return null;
         const balance = typeof it.balance === "number" ? it.balance : Number(it.balance);
         const used = typeof it.used === "number" ? it.used : Number(it.used);
+        const remaining = typeof it.remaining === "number" ? it.remaining : Number(it.remaining);
+        const quota = typeof it.quota === "number" ? it.quota : Number(it.quota);
+        const percent = typeof it.percent === "number" ? it.percent : Number(it.percent);
         const currency = typeof it.currency === "string" ? it.currency.trim() : "";
         const usedUnit = typeof it.usedUnit === "string" ? it.usedUnit.trim() : "";
         const limit = typeof it.limit === "number" ? it.limit : Number(it.limit);
         const itUpdatedAt = typeof it.updatedAt === "string" ? it.updatedAt : updatedAt;
+        const resetAt = typeof it.resetAt === "string" ? it.resetAt : "";
+        const apiBase = typeof it.apiBase === "string" ? it.apiBase.trim() : "";
         return {
           name,
           balance: Number.isFinite(balance) ? balance : null,
           used: Number.isFinite(used) ? used : null,
+          remaining: Number.isFinite(remaining) ? remaining : null,
+          quota: Number.isFinite(quota) ? quota : null,
+          percent: Number.isFinite(percent) ? percent : null,
           currency,
           usedUnit,
           limit: Number.isFinite(limit) ? limit : null,
           updatedAt: itUpdatedAt || "",
+          resetAt,
+          apiBase,
         };
       })
       .filter(Boolean);
@@ -252,9 +262,8 @@
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML =
-        `<div class="cardName">未配置</div>` +
-        `<div class="cardValue">--</div>` +
-        `<div class="cardMeta">点“导入JSON”选择本地文件，或点“粘贴JSON”直接粘贴。字段支持：balance（余额）、used（使用量）、usedUnit、limit、updatedAt。</div>`;
+        `<div class="cardLeft"><div class="cardName">未配置</div><div class="cardValue">--</div></div>` +
+        `<div class="cardRight"><div class="cardMeta">点“导入JSON”选择本地文件，或点“粘贴JSON”直接粘贴。字段支持：balance/currency、used/usedUnit、remaining/quota/resetAt（配合血条）、updatedAt。</div></div>`;
       dashboardCards.appendChild(card);
       return;
     }
@@ -262,22 +271,50 @@
     for (const it of items) {
       const card = document.createElement("div");
       card.className = "card";
-      const value = it.balance === null ? "--" : `${formatNumber(it.balance)}${it.currency ? ` ${it.currency}` : ""}`;
-      const usedValue =
-        it.used === null ? "--" : `${formatNumber(it.used)}${it.usedUnit ? ` ${it.usedUnit}` : ""}`;
-      const limitValue =
-        it.limit === null ? "" : `${formatNumber(it.limit)}${it.usedUnit ? ` ${it.usedUnit}` : ""}`;
+
+      const unit = it.usedUnit || "tokens";
+      const hasQuota = it.quota !== null && it.quota > 0;
+      const hasRemaining = it.remaining !== null;
+      const computedPercent =
+        it.percent !== null ? it.percent : hasQuota && hasRemaining ? (it.remaining / it.quota) * 100 : null;
+      const pct = computedPercent === null ? null : Math.max(0, Math.min(100, computedPercent));
+      const pctLabel = pct === null ? "--" : `${Math.round(pct)}%`;
+
+      const primaryValue = hasQuota && hasRemaining ? `${formatNumber(it.remaining)} / ${formatNumber(it.quota)} ${unit}` : it.balance === null ? "--" : `${formatNumber(it.balance)}${it.currency ? ` ${it.currency}` : ""}`;
+
+      const usedValue = it.used === null ? "--" : `${formatNumber(it.used)}${unit ? ` ${unit}` : ""}`;
+      const limitValue = it.limit === null ? "" : `${formatNumber(it.limit)}${unit ? ` ${unit}` : ""}`;
       const usageLine = limitValue ? `使用量：${usedValue} / ${limitValue}` : `使用量：${usedValue}`;
-      const meta = it.updatedAt ? formatUpdatedAt(it.updatedAt) : "";
+
+      const resetLine = it.resetAt ? `恢复时间：${new Date(it.resetAt).toLocaleString()}` : "";
+      const updatedLine = it.updatedAt ? formatUpdatedAt(it.updatedAt) : "";
+      const apiLine = it.apiBase ? `接口：${it.apiBase}` : "";
+      const resetDate = it.resetAt ? new Date(it.resetAt) : null;
+      const safeResetLine =
+        resetDate && !Number.isNaN(resetDate.getTime()) ? `恢复时间：${resetDate.toLocaleString()}` : "";
+
       card.innerHTML =
-        `<div class="cardName"></div>` +
-        `<div class="cardValue"></div>` +
+        `<div class="cardLeft"><div class="cardName"></div><div class="cardValue"></div></div>` +
+        `<div class="cardRight">` +
+        `<div class="barRow"><div class="barTrack"><div class="barFill"></div></div><div class="barPct"></div></div>` +
         `<div class="cardMeta"></div>` +
-        `<div class="cardMeta"></div>`;
+        `<div class="cardMeta"></div>` +
+        `<div class="cardMeta"></div>` +
+        `<div class="cardMeta"></div>` +
+        `</div>`;
+
       card.querySelector(".cardName").textContent = it.name;
-      card.querySelector(".cardValue").textContent = value;
-      card.querySelectorAll(".cardMeta")[0].textContent = usageLine;
-      card.querySelectorAll(".cardMeta")[1].textContent = meta;
+      card.querySelector(".cardValue").textContent = primaryValue;
+      const fill = card.querySelector(".barFill");
+      const pctEl = card.querySelector(".barPct");
+      pctEl.textContent = pctLabel;
+      fill.style.width = pct === null ? "0%" : `${pct.toFixed(2)}%`;
+
+      const metas = card.querySelectorAll(".cardMeta");
+      metas[0].textContent = usageLine;
+      metas[1].textContent = safeResetLine || "";
+      metas[2].textContent = apiLine || "";
+      metas[3].textContent = updatedLine || "";
       dashboardCards.appendChild(card);
     }
   };
@@ -510,8 +547,17 @@
       {
         updatedAt: nowISO(),
         items: [
-          { name: "OpenAI", balance: 12.34, currency: "USD", used: 123456, usedUnit: "tokens" },
-          { name: "Claude", balance: 56.78, currency: "USD", used: 98765, usedUnit: "tokens" },
+          {
+            name: "OpenAI",
+            balance: 12.34,
+            currency: "USD",
+            used: 123456,
+            usedUnit: "tokens",
+            remaining: 876544,
+            quota: 1000000,
+            resetAt: nowISO(),
+          },
+          { name: "Claude", balance: 56.78, currency: "USD", used: 98765, usedUnit: "tokens", resetAt: nowISO() },
         ],
       },
       null,

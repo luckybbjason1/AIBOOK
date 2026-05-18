@@ -108,3 +108,9 @@ TASK: clarify-import-buttons
 START: 2026-05-18T00:00:00Z
 PHASE: renamed topbar buttons to avoid confusion with dashboard JSON import
 END: 2026-05-18T00:00:00Z
+---
+TASK: dashboard-vertical-and-bloodbar
+START: 2026-05-18T00:00:00Z
+PHASE: switched dashboard layout to vertical list
+PHASE: added quota/remaining/resetAt fields and percent bar display
+END: 2026-05-18T00:00:00Z
